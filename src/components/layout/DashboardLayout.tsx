@@ -82,7 +82,7 @@ function SidebarComponent({ className, onNavClick }: { className?: string; onNav
 
   return (
     <div className={cn('flex h-full flex-col', className)}>
-      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+      <div className="flex h-14 items-center border-b px-4 lg:h-15 lg:px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <Car className="h-6 w-6" />
           <span>Mirza Admin</span>
@@ -138,7 +138,7 @@ function HeaderComponent() {
   }, [profile?.role]);
 
   return (
-    <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
+    <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-15 lg:px-6">
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetTrigger asChild>
           <Button variant="outline" size="icon" className="shrink-0 lg:hidden">
