@@ -63,12 +63,65 @@ export default function RentalsPage() {
   });
 
   useEffect(() => {
-    fetchRentals();
-    fetchCustomers();
-    fetchVehicles();
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchAllData = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        const [rentalsResult, customersResult, vehiclesResult] = await Promise.all([
+          supabase
+            .from('customer_vehicles')
+            .select('*, customer:profiles(*), vehicle:vehicles(*)')
+            .order('created_at', { ascending: false })
+            .abortSignal(abortController.signal),
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('role', 'customer')
+            .order('name')
+            .abortSignal(abortController.signal),
+          supabase
+            .from('vehicles')
+            .select('*')
+            .order('model_name')
+            .abortSignal(abortController.signal),
+        ]);
+
+        if (rentalsResult.error) {
+          if (rentalsResult.error.message?.includes('aborted')) return;
+          throw rentalsResult.error;
+        }
+
+        if (isMounted) {
+          setRentals(rentalsResult.data || []);
+          setFilteredRentals(rentalsResult.data || []);
+          setCustomers(customersResult.data || []);
+          setVehicles(vehiclesResult.data || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching rentals:', error);
+          toast.error('Kiralamalar yüklenirken hata oluştu.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchAllData();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
-  const fetchRentals = async () => {
+  const refetchRentals = async () => {
     const supabase = createClient();
     setIsLoading(true);
 
@@ -88,25 +141,6 @@ export default function RentalsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const fetchCustomers = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('role', 'customer')
-      .order('name');
-    setCustomers(data || []);
-  };
-
-  const fetchVehicles = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('vehicles')
-      .select('*')
-      .order('model_name');
-    setVehicles(data || []);
   };
 
   const handleSearch = (query: string) => {
@@ -156,7 +190,7 @@ export default function RentalsPage() {
       toast.success('Kiralama başarıyla oluşturuldu.');
       setIsAddDialogOpen(false);
       resetAddForm();
-      fetchRentals();
+      refetchRentals();
     } catch (error) {
       console.error('Error creating rental:', error);
       toast.error('Kiralama oluşturulurken hata oluştu.');
@@ -197,7 +231,7 @@ export default function RentalsPage() {
 
       toast.success('Kiralama güncellendi.');
       setIsEditDialogOpen(false);
-      fetchRentals();
+      refetchRentals();
     } catch (error) {
       console.error('Error updating rental:', error);
       toast.error('Güncelleme sırasında hata oluştu.');
@@ -220,7 +254,7 @@ export default function RentalsPage() {
       if (error) throw error;
 
       toast.success('Kiralama sonlandırıldı.');
-      fetchRentals();
+      refetchRentals();
     } catch (error) {
       console.error('Error ending rental:', error);
       toast.error('Kiralama sonlandırılırken hata oluştu.');
@@ -243,7 +277,7 @@ export default function RentalsPage() {
 
       toast.success('Kiralama silindi.');
       setIsDeleteDialogOpen(false);
-      fetchRentals();
+      refetchRentals();
     } catch (error) {
       console.error('Error deleting rental:', error);
       toast.error('Silme sırasında hata oluştu.');

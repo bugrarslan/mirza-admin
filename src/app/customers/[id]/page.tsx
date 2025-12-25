@@ -23,59 +23,77 @@ export default function CustomerDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (customerId) {
-      fetchCustomerData();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!customerId) return;
+
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchCustomerData = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        // Fetch customer profile - single() doesn't support abortSignal
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', customerId)
+          .single();
+
+        if (profileError) throw profileError;
+        if (!isMounted) return;
+        setCustomer(profileData);
+
+        // Fetch customer vehicles with vehicle details
+        const { data: vehiclesData } = await supabase
+          .from('customer_vehicles')
+          .select('*, vehicle:vehicles(*)')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: false })
+          .abortSignal(abortController.signal);
+
+        if (!isMounted) return;
+        setVehicles(vehiclesData || []);
+
+        // Fetch customer documents
+        const { data: documentsData } = await supabase
+          .from('documents')
+          .select('*, vehicle:vehicles(*)')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: false })
+          .abortSignal(abortController.signal);
+
+        if (!isMounted) return;
+        setDocuments(documentsData || []);
+
+        // Fetch customer requests
+        const { data: requestsData } = await supabase
+          .from('requests')
+          .select('*, vehicle:vehicles(*)')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: false })
+          .abortSignal(abortController.signal);
+
+        if (!isMounted) return;
+        setRequests(requestsData || []);
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching customer data:', error);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchCustomerData();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [customerId]);
-
-  const fetchCustomerData = async () => {
-    const supabase = createClient();
-    setIsLoading(true);
-
-    try {
-      // Fetch customer profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', customerId)
-        .single();
-
-      if (profileError) throw profileError;
-      setCustomer(profileData);
-
-      // Fetch customer vehicles with vehicle details
-      const { data: vehiclesData } = await supabase
-        .from('customer_vehicles')
-        .select('*, vehicle:vehicles(*)')
-        .eq('customer_id', customerId)
-        .order('created_at', { ascending: false });
-
-      setVehicles(vehiclesData || []);
-
-      // Fetch customer documents
-      const { data: documentsData } = await supabase
-        .from('documents')
-        .select('*, vehicle:vehicles(*)')
-        .eq('customer_id', customerId)
-        .order('created_at', { ascending: false });
-
-      setDocuments(documentsData || []);
-
-      // Fetch customer requests
-      const { data: requestsData } = await supabase
-        .from('requests')
-        .select('*, vehicle:vehicles(*)')
-        .eq('customer_id', customerId)
-        .order('created_at', { ascending: false });
-
-      setRequests(requestsData || []);
-    } catch (error) {
-      console.error('Error fetching customer data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     const statusStyles: Record<string, string> = {

@@ -23,50 +23,66 @@ export default function VehicleDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (vehicleId) {
-      fetchVehicleData();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!vehicleId) return;
+
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchVehicleData = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        // Fetch vehicle - single() doesn't support abortSignal
+        const { data: vehicleData, error: vehicleError } = await supabase
+          .from('vehicles')
+          .select('*')
+          .eq('id', vehicleId)
+          .single();
+
+        if (vehicleError) throw vehicleError;
+        if (!isMounted) return;
+        setVehicle(vehicleData);
+
+        // Fetch rentals with customer details
+        const { data: rentalsData } = await supabase
+          .from('customer_vehicles')
+          .select('*, customer:profiles(*)')
+          .eq('vehicle_id', vehicleId)
+          .order('created_at', { ascending: false })
+          .abortSignal(abortController.signal);
+
+        if (!isMounted) return;
+        setRentals(rentalsData || []);
+
+        // Fetch service history
+        const { data: serviceData } = await supabase
+          .from('service_history')
+          .select('*')
+          .eq('vehicle_id', vehicleId)
+          .order('service_date', { ascending: false })
+          .abortSignal(abortController.signal);
+
+        if (!isMounted) return;
+        setServiceHistory(serviceData || []);
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching vehicle data:', error);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchVehicleData();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [vehicleId]);
-
-  const fetchVehicleData = async () => {
-    const supabase = createClient();
-    setIsLoading(true);
-
-    try {
-      // Fetch vehicle
-      const { data: vehicleData, error: vehicleError } = await supabase
-        .from('vehicles')
-        .select('*')
-        .eq('id', vehicleId)
-        .single();
-
-      if (vehicleError) throw vehicleError;
-      setVehicle(vehicleData);
-
-      // Fetch rentals with customer details
-      const { data: rentalsData } = await supabase
-        .from('customer_vehicles')
-        .select('*, customer:profiles(*)')
-        .eq('vehicle_id', vehicleId)
-        .order('created_at', { ascending: false });
-
-      setRentals(rentalsData || []);
-
-      // Fetch service history
-      const { data: serviceData } = await supabase
-        .from('service_history')
-        .select('*')
-        .eq('vehicle_id', vehicleId)
-        .order('service_date', { ascending: false });
-
-      setServiceHistory(serviceData || []);
-    } catch (error) {
-      console.error('Error fetching vehicle data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const getServiceTypeBadge = (type: string) => {
     const typeLabels: Record<string, string> = {

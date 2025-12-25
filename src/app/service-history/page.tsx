@@ -61,10 +61,54 @@ export default function ServiceHistoryPage() {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchData = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        const [historyResult, vehiclesResult] = await Promise.all([
+          supabase
+            .from('service_history')
+            .select('*, vehicle:vehicles(*)')
+            .order('service_date', { ascending: false })
+            .abortSignal(abortController.signal),
+          supabase.from('vehicles').select('*').abortSignal(abortController.signal),
+        ]);
+
+        if (historyResult.error) {
+          if (historyResult.error.message?.includes('aborted')) return;
+          throw historyResult.error;
+        }
+
+        if (isMounted) {
+          setServiceHistory(historyResult.data || []);
+          setFilteredHistory(historyResult.data || []);
+          setVehicles(vehiclesResult.data || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching data:', error);
+          toast.error('Veriler yüklenirken hata oluştu.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchData();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
-  const fetchData = async () => {
+  const refetchData = async () => {
     const supabase = createClient();
     setIsLoading(true);
 
@@ -158,7 +202,7 @@ export default function ServiceHistoryPage() {
 
       setIsFormDialogOpen(false);
       resetForm();
-      fetchData();
+      refetchData();
     } catch (error) {
       console.error('Error saving service:', error);
       toast.error('Kaydetme sırasında hata oluştu.');
@@ -183,7 +227,7 @@ export default function ServiceHistoryPage() {
 
       toast.success('Servis kaydı silindi.');
       setIsDeleteDialogOpen(false);
-      fetchData();
+      refetchData();
     } catch (error) {
       console.error('Error deleting service:', error);
       toast.error('Silme sırasında hata oluştu.');

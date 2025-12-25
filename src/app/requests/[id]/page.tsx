@@ -53,42 +53,69 @@ export default function RequestDetailPage() {
   const [selectedStatus, setSelectedStatus] = useState<RequestStatus>('pending');
 
   useEffect(() => {
-    if (requestId) {
-      fetchRequestData();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!requestId) return;
+
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchRequestData = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        // Fetch request with customer and vehicle - single() doesn't support abortSignal
+        const { data: requestData, error: requestError } = await supabase
+          .from('requests')
+          .select('*, customer:profiles!requests_customer_id_fkey(*), vehicle:vehicles(*)')
+          .eq('id', requestId)
+          .single();
+
+        if (requestError) throw requestError;
+        if (!isMounted) return;
+        setRequest(requestData);
+        setSelectedStatus(requestData.status);
+
+        // Fetch responses with admin info
+        const { data: responsesData } = await supabase
+          .from('request_responses')
+          .select('*, admin:profiles!request_responses_admin_id_fkey(*)')
+          .eq('request_id', requestId)
+          .order('created_at', { ascending: true })
+          .abortSignal(abortController.signal);
+
+        if (!isMounted) return;
+        setResponses(responsesData || []);
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching request data:', error);
+          toast.error('Talep bilgileri yüklenirken hata oluştu.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchRequestData();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [requestId]);
 
-  const fetchRequestData = async () => {
+  const refetchResponses = async () => {
+    if (!requestId) return;
     const supabase = createClient();
-    setIsLoading(true);
+    
+    const { data: responsesData } = await supabase
+      .from('request_responses')
+      .select('*, admin:profiles!request_responses_admin_id_fkey(*)')
+      .eq('request_id', requestId)
+      .order('created_at', { ascending: true });
 
-    try {
-      // Fetch request with customer and vehicle
-      const { data: requestData, error: requestError } = await supabase
-        .from('requests')
-        .select('*, customer:profiles!requests_customer_id_fkey(*), vehicle:vehicles(*)')
-        .eq('id', requestId)
-        .single();
-
-      if (requestError) throw requestError;
-      setRequest(requestData);
-      setSelectedStatus(requestData.status);
-
-      // Fetch responses with admin info
-      const { data: responsesData } = await supabase
-        .from('request_responses')
-        .select('*, admin:profiles!request_responses_admin_id_fkey(*)')
-        .eq('request_id', requestId)
-        .order('created_at', { ascending: true });
-
-      setResponses(responsesData || []);
-    } catch (error) {
-      console.error('Error fetching request data:', error);
-      toast.error('Talep bilgileri yüklenirken hata oluştu.');
-    } finally {
-      setIsLoading(false);
-    }
+    setResponses(responsesData || []);
   };
 
   const handleStatusChange = async (newStatus: RequestStatus) => {

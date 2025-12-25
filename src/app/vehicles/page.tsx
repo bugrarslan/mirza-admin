@@ -30,7 +30,7 @@ import { CreateVehicleInput, Vehicle } from '@/types/database';
 import { Car, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 const fuelTypes = ['Benzin', 'Dizel', 'Elektrik', 'Hibrit', 'LPG'];
@@ -62,10 +62,50 @@ export default function VehiclesPage() {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchVehicles = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        const { data, error } = await supabase
+          .from('vehicles')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .abortSignal(abortController.signal);
+
+        if (error) {
+          if (error.message?.includes('aborted')) return;
+          throw error;
+        }
+
+        if (isMounted) {
+          setVehicles(data || []);
+          setFilteredVehicles(data || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching vehicles:', error);
+          toast.error('Araçlar yüklenirken hata oluştu.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchVehicles();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
-  const fetchVehicles = async () => {
+  const refetchVehicles = async () => {
     const supabase = createClient();
     setIsLoading(true);
 
@@ -87,7 +127,7 @@ export default function VehiclesPage() {
     }
   };
 
-  const handleSearch = (query: string) => {
+  const handleSearch = useCallback((query: string) => {
     const filtered = vehicles.filter(
       (vehicle) =>
         vehicle.plate_number.toLowerCase().includes(query.toLowerCase()) ||
@@ -95,9 +135,9 @@ export default function VehiclesPage() {
         vehicle.class?.toLowerCase().includes(query.toLowerCase())
     );
     setFilteredVehicles(filtered);
-  };
+  }, [vehicles]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       plate_number: '',
       model_name: '',
@@ -112,12 +152,12 @@ export default function VehiclesPage() {
     setIsEditing(false);
     setSelectedVehicle(null);
     setSelectedFile(null);
-  };
+  }, []);
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     resetForm();
     setIsFormDialogOpen(true);
-  };
+  }, [resetForm]);
 
   const handleEdit = (vehicle: Vehicle) => {
     setSelectedVehicle(vehicle);
@@ -191,7 +231,7 @@ export default function VehiclesPage() {
 
       setIsFormDialogOpen(false);
       resetForm();
-      fetchVehicles();
+      refetchVehicles();
     } catch (error: unknown) {
       console.error('Error saving vehicle:', error);
       const dbError = error as { code?: string };
@@ -230,7 +270,7 @@ export default function VehiclesPage() {
 
       toast.success('Araç silindi.');
       setIsDeleteDialogOpen(false);
-      fetchVehicles();
+      refetchVehicles();
     } catch (error) {
       console.error('Error deleting vehicle:', error);
       toast.error('Silme sırasında hata oluştu.');
@@ -239,7 +279,7 @@ export default function VehiclesPage() {
     }
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       header: 'Araç',
       accessor: (vehicle: Vehicle) => (
@@ -281,7 +321,7 @@ export default function VehiclesPage() {
       accessor: (vehicle: Vehicle) =>
         new Date(vehicle.created_at).toLocaleDateString('tr-TR'),
     },
-  ];
+  ], []);
 
   const userCanDelete = canDelete(profile?.role, 'vehicles');
 

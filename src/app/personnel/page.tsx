@@ -67,10 +67,51 @@ export default function PersonnelPage() {
   }, [currentUser, router]);
 
   useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchPersonnel = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('role', ['admin', 'personnel'])
+          .order('created_at', { ascending: false })
+          .abortSignal(abortController.signal);
+
+        if (error) {
+          if (error.message?.includes('aborted')) return;
+          throw error;
+        }
+
+        if (isMounted) {
+          setPersonnel(data || []);
+          setFilteredPersonnel(data || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching personnel:', error);
+          toast.error('Personel listesi yüklenirken hata oluştu.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchPersonnel();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
-  const fetchPersonnel = async () => {
+  const refetchPersonnel = async () => {
     const supabase = createClient();
     setIsLoading(true);
 
@@ -169,7 +210,7 @@ export default function PersonnelPage() {
         toast.success('Kullanıcı başarıyla oluşturuldu.');
         setIsAddDialogOpen(false);
         resetAddForm();
-        setTimeout(() => fetchPersonnel(), 1000);
+        setTimeout(() => refetchPersonnel(), 1000);
       }
     } catch (error: unknown) {
       console.error('Error creating user:', error);
@@ -223,7 +264,7 @@ export default function PersonnelPage() {
 
       toast.success('Kullanıcı bilgileri güncellendi.');
       setIsEditDialogOpen(false);
-      fetchPersonnel();
+      refetchPersonnel();
     } catch (error) {
       console.error('Error updating user:', error);
       toast.error('Güncelleme sırasında hata oluştu.');
@@ -255,7 +296,7 @@ export default function PersonnelPage() {
 
       toast.success('Kullanıcı silindi.');
       setIsDeleteDialogOpen(false);
-      fetchPersonnel();
+      refetchPersonnel();
     } catch (error) {
       console.error('Error deleting user:', error);
       toast.error('Silme sırasında hata oluştu.');

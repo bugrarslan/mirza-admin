@@ -42,35 +42,53 @@ export default function RequestsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchRequests = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        const { data, error } = await supabase
+          .from('requests')
+          .select('*, customer:profiles!requests_customer_id_fkey(*), vehicle:vehicles(*)')
+          .order('created_at', { ascending: false })
+          .abortSignal(abortController.signal);
+
+        if (error) {
+          if (error.message?.includes('aborted')) return;
+          throw error;
+        }
+
+        if (isMounted) {
+          setRequests(data || []);
+          setFilteredRequests(data || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching requests:', error);
+          toast.error('Talepler yüklenirken hata oluştu.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchRequests();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
   useEffect(() => {
     filterRequests();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, requests]);
-
-  const fetchRequests = async () => {
-    const supabase = createClient();
-    setIsLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .from('requests')
-        .select('*, customer:profiles!requests_customer_id_fkey(*), vehicle:vehicles(*)')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setRequests(data || []);
-      setFilteredRequests(data || []);
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-      toast.error('Talepler yüklenirken hata oluştu.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const filterRequests = () => {
     if (statusFilter === 'all') {

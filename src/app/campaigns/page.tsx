@@ -46,10 +46,50 @@ export default function CampaignsPage() {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchCampaigns = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        const { data, error } = await supabase
+          .from('campaigns')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .abortSignal(abortController.signal);
+
+        if (error) {
+          if (error.message?.includes('aborted')) return;
+          throw error;
+        }
+
+        if (isMounted) {
+          setCampaigns(data || []);
+          setFilteredCampaigns(data || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching campaigns:', error);
+          toast.error('Kampanyalar yüklenirken hata oluştu.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchCampaigns();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
-  const fetchCampaigns = async () => {
+  const refetchCampaigns = async () => {
     const supabase = createClient();
     setIsLoading(true);
 
@@ -160,7 +200,7 @@ export default function CampaignsPage() {
 
       setIsFormDialogOpen(false);
       resetForm();
-      fetchCampaigns();
+      refetchCampaigns();
     } catch (error) {
       console.error('Error saving campaign:', error);
       toast.error('Kaydetme sırasında hata oluştu.');
@@ -181,7 +221,7 @@ export default function CampaignsPage() {
       if (error) throw error;
 
       toast.success(campaign.is_active ? 'Kampanya devre dışı bırakıldı.' : 'Kampanya aktifleştirildi.');
-      fetchCampaigns();
+      refetchCampaigns();
     } catch (error) {
       console.error('Error toggling campaign:', error);
       toast.error('İşlem sırasında hata oluştu.');
@@ -213,7 +253,7 @@ export default function CampaignsPage() {
 
       toast.success('Kampanya silindi.');
       setIsDeleteDialogOpen(false);
-      fetchCampaigns();
+      refetchCampaigns();
     } catch (error) {
       console.error('Error deleting campaign:', error);
       toast.error('Silme sırasında hata oluştu.');
