@@ -101,7 +101,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       set({ isLoading: false });
       return { error: 'Giriş yapılamadı.' };
-    } catch (error) {
+    } catch {
       set({ isLoading: false });
       return { error: 'Beklenmeyen bir hata oluştu.' };
     }
@@ -114,8 +114,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       await supabase.auth.signOut();
       set({ user: null, session: null, profile: null });
-    } catch (error) {
-      console.error('Error signing out:', error);
+    } catch (err) {
+      console.error('Error signing out:', err);
     } finally {
       set({ isLoading: false });
     }

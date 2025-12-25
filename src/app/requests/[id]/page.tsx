@@ -17,6 +17,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { Request, RequestResponse, RequestStatus } from '@/types/database';
 import { ArrowLeft, Car, Image as ImageIcon, MessageSquare, Send, User } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -42,7 +43,7 @@ export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
   const requestId = params.id as string;
-  const { profile, user } = useAuthStore();
+  const { user } = useAuthStore();
 
   const [request, setRequest] = useState<Request | null>(null);
   const [responses, setResponses] = useState<RequestResponse[]>([]);
@@ -55,6 +56,7 @@ export default function RequestDetailPage() {
     if (requestId) {
       fetchRequestData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
 
   const fetchRequestData = async () => {
@@ -254,12 +256,14 @@ export default function RequestDetailPage() {
                           href={url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="overflow-hidden transition-opacity rounded-lg aspect-square bg-muted hover:opacity-80"
+                          className="overflow-hidden transition-opacity rounded-lg aspect-square bg-muted hover:opacity-80 relative"
                         >
-                          <img
+                          <Image
                             src={url}
                             alt={`Görsel ${index + 1}`}
-                            className="object-cover w-full h-full"
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 33vw, 150px"
                           />
                         </a>
                       ))}

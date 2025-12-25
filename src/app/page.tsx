@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
+import { Request } from '@/types/database';
 import { Car, Clock, FileText, Megaphone, MessageSquare, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -54,7 +55,7 @@ export default function DashboardPage() {
     totalDocuments: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [recentRequests, setRecentRequests] = useState<any[]>([]);
+  const [recentRequests, setRecentRequests] = useState<Request[]>([]);
 
   useEffect(() => {
     const fetchStats = async () => {

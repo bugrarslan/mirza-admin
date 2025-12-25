@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClient } from '@/lib/supabase/client';
 import { CustomerVehicle, ServiceHistory, Vehicle } from '@/types/database';
 import { ArrowLeft, Car, Fuel, Settings, Users, Wrench } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -25,6 +26,7 @@ export default function VehicleDetailPage() {
     if (vehicleId) {
       fetchVehicleData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleId]);
 
   const fetchVehicleData = async () => {
@@ -117,12 +119,14 @@ export default function VehicleDetailPage() {
       <Card>
         <CardHeader>
           <div className="flex items-start gap-6">
-            <div className="h-32 w-48 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+            <div className="h-32 w-48 rounded-lg bg-muted flex items-center justify-center overflow-hidden relative">
               {vehicle.image_url ? (
-                <img
+                <Image
                   src={vehicle.image_url}
                   alt={vehicle.model_name}
-                  className="h-full w-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="192px"
                 />
               ) : (
                 <Car className="h-12 w-12 text-muted-foreground" />

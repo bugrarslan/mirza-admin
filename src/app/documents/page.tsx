@@ -186,7 +186,7 @@ export default function DocumentsPage() {
         finalFileName = formData.file_name || selectedFile.name;
       }
 
-      const saveData: any = {
+      const saveData: Omit<Document, 'id' | 'created_at' | 'updated_at'> & { vehicle_id?: number | null } = {
         customer_id: formData.customer_id,
         document_type: formData.document_type,
         file_path: finalFilePath,

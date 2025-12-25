@@ -165,12 +165,13 @@ export default function CustomersPage() {
         resetAddForm();
         setTimeout(() => fetchCustomers(), 1000);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating customer:', error);
-      if (error.message?.includes('already') || error.message?.includes('exists')) {
+      const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata';
+      if (errorMessage.includes('already') || errorMessage.includes('exists')) {
         toast.error('Bu e-posta adresi zaten kayıtlı.');
       } else {
-        toast.error(`Müşteri oluşturulurken hata: ${error.message || 'Bilinmeyen hata'}`);
+        toast.error(`Müşteri oluşturulurken hata: ${errorMessage}`);
       }
     } finally {
       setIsSubmitting(false);

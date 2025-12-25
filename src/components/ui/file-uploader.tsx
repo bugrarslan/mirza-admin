@@ -1,7 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { FileText, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
+import { useRef, useState } from 'react';
 
 interface FileUploaderProps {
   label: string;
@@ -22,16 +23,12 @@ export function FileUploader({
   accept = 'image/*',
   showPreview = true,
 }: FileUploaderProps) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(currentUrl || null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // currentUrl değiştiğinde preview'ı güncelle
-  useEffect(() => {
-    if (currentUrl && !selectedFile) {
-      setPreviewUrl(currentUrl);
-    }
-  }, [currentUrl, selectedFile]);
+  // Preview URL: Use selected file's preview or fall back to currentUrl
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  const previewUrl = selectedFile ? localPreviewUrl : (currentUrl || null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -44,16 +41,16 @@ export function FileUploader({
     if (file.type.startsWith('image/') && showPreview) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
+        setLocalPreviewUrl(reader.result as string);
       };
       reader.readAsDataURL(file);
     } else {
-      setPreviewUrl(null);
+      setLocalPreviewUrl(null);
     }
   };
 
   const handleRemove = () => {
-    setPreviewUrl(null);
+    setLocalPreviewUrl(null);
     setSelectedFile(null);
     onFileSelect(null);
     if (fileInputRef.current) {
@@ -71,10 +68,12 @@ export function FileUploader({
       {showPreview && previewUrl && (
         <div className="relative w-full h-48 overflow-hidden border rounded-lg bg-muted">
           {isImage ? (
-            <img
+            <Image
               src={previewUrl}
               alt="Preview"
-              className="object-contain w-full h-full"
+              fill
+              className="object-contain"
+              unoptimized
             />
           ) : (
             <div className="flex items-center justify-center w-full h-full">

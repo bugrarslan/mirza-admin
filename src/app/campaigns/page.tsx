@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { deleteFile, extractPathFromUrl, replaceFile, uploadFile } from '@/lib/storage';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { canDelete, useAuthStore } from '@/stores/authStore';
 import { Campaign, CreateCampaignInput } from '@/types/database';
@@ -226,12 +227,14 @@ export default function CampaignsPage() {
       header: 'Kampanya',
       accessor: (campaign: Campaign) => (
         <div className="flex items-center gap-3">
-          <div className="h-16 w-24 rounded bg-muted flex items-center justify-center overflow-hidden">
+          <div className="h-16 w-24 rounded bg-muted flex items-center justify-center overflow-hidden relative">
             {campaign.image_url ? (
-              <img
+              <Image
                 src={campaign.image_url}
                 alt={campaign.title}
-                className="h-full w-full object-cover"
+                fill
+                className="object-cover"
+                sizes="96px"
               />
             ) : (
               <Megaphone className="h-6 w-6 text-muted-foreground" />

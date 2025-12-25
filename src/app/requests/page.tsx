@@ -47,6 +47,7 @@ export default function RequestsPage() {
 
   useEffect(() => {
     filterRequests();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, requests]);
 
   const fetchRequests = async () => {

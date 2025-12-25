@@ -28,6 +28,7 @@ import { createClient } from '@/lib/supabase/client';
 import { canDelete, useAuthStore } from '@/stores/authStore';
 import { CreateVehicleInput, Vehicle } from '@/types/database';
 import { Car, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -191,9 +192,10 @@ export default function VehiclesPage() {
       setIsFormDialogOpen(false);
       resetForm();
       fetchVehicles();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving vehicle:', error);
-      if (error.code === '23505') {
+      const dbError = error as { code?: string };
+      if (dbError.code === '23505') {
         toast.error('Bu plaka numarası zaten kayıtlı.');
       } else {
         toast.error('Kaydetme sırasında hata oluştu.');
@@ -242,9 +244,9 @@ export default function VehiclesPage() {
       header: 'Araç',
       accessor: (vehicle: Vehicle) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden">
+          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden relative">
             {vehicle.image_url ? (
-              <img src={vehicle.image_url} alt={vehicle.model_name} className="h-full w-full object-cover" />
+              <Image src={vehicle.image_url} alt={vehicle.model_name} fill className="object-cover" sizes="40px" />
             ) : (
               <Car className="h-5 w-5 text-muted-foreground" />
             )}

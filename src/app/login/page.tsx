@@ -24,13 +24,16 @@ function LoginForm() {
     }
   }, [isInitialized, initialize]);
 
+  // Check for error in URL params on mount
+  const urlError = searchParams.get('error');
+  const initialError = urlError === 'unauthorized' ? 'Bu panele erişim yetkiniz bulunmamaktadır.' : null;
+  
   useEffect(() => {
-    // Check for error in URL params
-    const urlError = searchParams.get('error');
-    if (urlError === 'unauthorized') {
-      setError('Bu panele erişim yetkiniz bulunmamaktadır.');
+    if (initialError && !error) {
+      setError(initialError);
     }
-  }, [searchParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // Redirect if already logged in with proper role
