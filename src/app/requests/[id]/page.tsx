@@ -105,7 +105,8 @@ export default function RequestDetailPage() {
     };
   }, [requestId]);
 
-  const refetchResponses = async () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _refetchResponses = async () => {
     if (!requestId) return;
     const supabase = createClient();
     
