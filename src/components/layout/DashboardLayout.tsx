@@ -124,7 +124,7 @@ function HeaderComponent() {
       return profile.email[0].toUpperCase();
     }
     return 'U';
-  }, [profile?.name, profile?.surname, profile?.email]);
+  }, [profile]);
 
   const getRoleBadge = useCallback(() => {
     switch (profile?.role) {
