@@ -11,7 +11,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 
 interface Column<T> {
   header: string;
@@ -31,7 +31,7 @@ interface DataTableProps<T> {
   pageSize?: number;
 }
 
-export function DataTable<T>({
+function DataTableComponent<T>({
   data,
   columns,
   keyExtractor,
@@ -45,27 +45,28 @@ export function DataTable<T>({
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
     setCurrentPage(1);
     onSearch?.(query);
-  };
+  }, [onSearch]);
 
-  const totalPages = Math.ceil(data.length / pageSize);
-  const paginatedData = data.slice(
+  const totalPages = useMemo(() => Math.ceil(data.length / pageSize), [data.length, pageSize]);
+  
+  const paginatedData = useMemo(() => data.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
-  );
+  ), [data, currentPage, pageSize]);
 
-  const getCellValue = (item: T, accessor: Column<T>['accessor']): React.ReactNode => {
+  const getCellValue = useCallback((item: T, accessor: Column<T>['accessor']): React.ReactNode => {
     if (typeof accessor === 'function') {
       return accessor(item);
     }
     const value = item[accessor];
     if (value === null || value === undefined) return '-';
     return String(value);
-  };
+  }, []);
 
   if (isLoading) {
     return (
@@ -161,3 +162,6 @@ export function DataTable<T>({
     </div>
   );
 }
+
+// Memo ile sarıyoruz - generic type için type assertion gerekli
+export const DataTable = memo(DataTableComponent) as typeof DataTableComponent;

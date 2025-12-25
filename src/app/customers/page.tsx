@@ -54,10 +54,51 @@ export default function CustomersPage() {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchCustomers = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('role', 'customer')
+          .order('created_at', { ascending: false })
+          .abortSignal(abortController.signal);
+
+        if (error) {
+          if (error.message?.includes('aborted')) return;
+          throw error;
+        }
+
+        if (isMounted) {
+          setCustomers(data || []);
+          setFilteredCustomers(data || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching customers:', error);
+          toast.error('Müşteriler yüklenirken hata oluştu.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchCustomers();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
-  const fetchCustomers = async () => {
+  const refetchCustomers = async () => {
     const supabase = createClient();
     setIsLoading(true);
 
@@ -163,7 +204,7 @@ export default function CustomersPage() {
         toast.success('Müşteri başarıyla oluşturuldu.');
         setIsAddDialogOpen(false);
         resetAddForm();
-        setTimeout(() => fetchCustomers(), 1000);
+        setTimeout(() => refetchCustomers(), 1000);
       }
     } catch (error: unknown) {
       console.error('Error creating customer:', error);
@@ -212,7 +253,7 @@ export default function CustomersPage() {
 
       toast.success('Müşteri bilgileri güncellendi.');
       setIsEditDialogOpen(false);
-      fetchCustomers();
+      refetchCustomers();
     } catch (error) {
       console.error('Error updating customer:', error);
       toast.error('Güncelleme sırasında hata oluştu.');
@@ -237,7 +278,7 @@ export default function CustomersPage() {
 
       toast.success('Müşteri silindi.');
       setIsDeleteDialogOpen(false);
-      fetchCustomers();
+      refetchCustomers();
     } catch (error) {
       console.error('Error deleting customer:', error);
       toast.error('Silme sırasında hata oluştu.');

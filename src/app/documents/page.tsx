@@ -62,10 +62,56 @@ export default function DocumentsPage() {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchData = async () => {
+      const supabase = createClient();
+      setIsLoading(true);
+
+      try {
+        const [documentsResult, customersResult, vehiclesResult] = await Promise.all([
+          supabase
+            .from('documents')
+            .select('*, customer:profiles!documents_customer_id_fkey(*), vehicle:vehicles(*)')
+            .order('created_at', { ascending: false })
+            .abortSignal(abortController.signal),
+          supabase.from('profiles').select('*').eq('role', 'customer').abortSignal(abortController.signal),
+          supabase.from('vehicles').select('*').abortSignal(abortController.signal),
+        ]);
+
+        if (documentsResult.error) {
+          if (documentsResult.error.message?.includes('aborted')) return;
+          throw documentsResult.error;
+        }
+
+        if (isMounted) {
+          setDocuments(documentsResult.data || []);
+          setFilteredDocuments(documentsResult.data || []);
+          setCustomers(customersResult.data || []);
+          setVehicles(vehiclesResult.data || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching data:', error);
+          toast.error('Veriler yüklenirken hata oluştu.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchData();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
-  const fetchData = async () => {
+  const refetchData = async () => {
     const supabase = createClient();
     setIsLoading(true);
 
@@ -186,18 +232,14 @@ export default function DocumentsPage() {
         finalFileName = formData.file_name || selectedFile.name;
       }
 
-      const saveData: Omit<Document, 'id' | 'created_at' | 'updated_at'> & { vehicle_id?: number | null } = {
+      const saveData = {
         customer_id: formData.customer_id,
-        document_type: formData.document_type,
+        document_type: formData.document_type as Document['document_type'],
         file_path: finalFilePath,
         file_name: finalFileName || null,
+        vehicle_id: formData.vehicle_id ? parseInt(formData.vehicle_id) : null,
+        isSeen_customer: false,
       };
-
-      if (formData.vehicle_id) {
-        saveData.vehicle_id = parseInt(formData.vehicle_id);
-      } else {
-        saveData.vehicle_id = null;
-      }
 
       let error;
       if (isEditing && selectedDocument) {
@@ -213,7 +255,7 @@ export default function DocumentsPage() {
       toast.success(isEditing ? 'Belge güncellendi.' : 'Belge eklendi.');
       setIsFormDialogOpen(false);
       resetForm();
-      fetchData();
+      refetchData();
     } catch (error) {
       console.error('Error saving document:', error);
       toast.error('Kaydetme sırasında hata oluştu.');
@@ -247,7 +289,7 @@ export default function DocumentsPage() {
 
       toast.success('Belge silindi.');
       setIsDeleteDialogOpen(false);
-      fetchData();
+      refetchData();
     } catch (error) {
       console.error('Error deleting document:', error);
       toast.error('Silme sırasında hata oluştu.');

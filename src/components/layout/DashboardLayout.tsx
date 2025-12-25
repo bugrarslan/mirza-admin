@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
 interface NavItem {
   title: string;
@@ -49,7 +49,7 @@ const navItems: NavItem[] = [
   { title: 'Personel', href: '/personnel', icon: UserCog, adminOnly: true },
 ];
 
-function NavLink({ item, isActive, onClick }: { item: NavItem; isActive: boolean; onClick?: () => void }) {
+function NavLinkComponent({ item, isActive, onClick }: { item: NavItem; isActive: boolean; onClick?: () => void }) {
   const Icon = item.icon;
   
   return (
@@ -69,14 +69,16 @@ function NavLink({ item, isActive, onClick }: { item: NavItem; isActive: boolean
   );
 }
 
-function Sidebar({ className, onNavClick }: { className?: string; onNavClick?: () => void }) {
+const NavLink = memo(NavLinkComponent);
+
+function SidebarComponent({ className, onNavClick }: { className?: string; onNavClick?: () => void }) {
   const pathname = usePathname();
   const { profile } = useAuthStore();
   const userIsAdmin = isAdmin(profile?.role);
 
-  const filteredNavItems = navItems.filter(
+  const filteredNavItems = useMemo(() => navItems.filter(
     (item) => !item.adminOnly || userIsAdmin
-  );
+  ), [userIsAdmin]);
 
   return (
     <div className={cn('flex h-full flex-col', className)}>
@@ -100,17 +102,21 @@ function Sidebar({ className, onNavClick }: { className?: string; onNavClick?: (
   );
 }
 
-function Header() {
+const Sidebar = memo(SidebarComponent);
+
+function HeaderComponent() {
   const { profile, signOut } = useAuthStore();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     await signOut();
     router.push('/login');
-  };
+  }, [signOut, router]);
 
-  const getInitials = () => {
+  const handleMobileClose = useCallback(() => setMobileOpen(false), []);
+
+  const getInitials = useCallback(() => {
     if (profile?.name && profile?.surname) {
       return `${profile.name[0]}${profile.surname[0]}`.toUpperCase();
     }
@@ -118,9 +124,9 @@ function Header() {
       return profile.email[0].toUpperCase();
     }
     return 'U';
-  };
+  }, [profile?.name, profile?.surname, profile?.email]);
 
-  const getRoleBadge = () => {
+  const getRoleBadge = useCallback(() => {
     switch (profile?.role) {
       case 'admin':
         return 'Yönetici';
@@ -129,7 +135,7 @@ function Header() {
       default:
         return 'Kullanıcı';
     }
-  };
+  }, [profile?.role]);
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
@@ -141,7 +147,7 @@ function Header() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-72 p-0">
-          <Sidebar onNavClick={() => setMobileOpen(false)} />
+          <Sidebar onNavClick={handleMobileClose} />
         </SheetContent>
       </Sheet>
 
@@ -179,6 +185,8 @@ function Header() {
     </header>
   );
 }
+
+const Header = memo(HeaderComponent);
 
 export default function DashboardLayout({
   children,
